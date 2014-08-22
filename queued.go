@@ -6,7 +6,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/scttnlsn/queued/queued"
+	"github.com/masahide/queued/queued"
 )
 
 var config *queued.Config

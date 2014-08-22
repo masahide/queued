@@ -8,17 +8,16 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/masahide/queued/queued"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
-	"github.com/syndtr/goleveldb/leveldb/iterator"
+	leveldb_iterator "github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 // Iterator
 
 type LevelIterator struct {
-	*iterator.Iterator
+	leveldb_iterator.Iterator
 }
 
 func (it *LevelIterator) NextRecord() (*Record, bool) {
@@ -62,7 +61,8 @@ type LevelStore struct {
 
 func NewLevelStore(path string, sync bool) *LevelStore {
 	opts := &opt.Options{
-		Filter: filter.NewBloomFilter(10),
+		Filter:         filter.NewBloomFilter(10),
+		ErrorIfMissing: false,
 	}
 	db, err := leveldb.OpenFile(path, opts)
 	if err != nil {
@@ -154,7 +154,7 @@ func (s *LevelStore) Drop() {
 	}
 }
 
-func (s *LevelStore) Iterator() *queued.Iterator {
+func (s *LevelStore) Iterator() Iterator {
 	it := s.db.NewIterator(nil, nil)
 	it.First()
 	return &LevelIterator{it}
