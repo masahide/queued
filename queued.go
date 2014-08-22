@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/scttnlsn/queued/queued"
 	"os"
 	"runtime"
+
+	"github.com/masahide/queued/queued"
 )
 
 var config *queued.Config

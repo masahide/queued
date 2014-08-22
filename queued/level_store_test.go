@@ -1,8 +1,9 @@
 package queued
 
 import (
-	"github.com/bmizerany/assert"
 	"testing"
+
+	"github.com/bmizerany/assert"
 )
 
 func TestLevelStore(t *testing.T) {
@@ -27,7 +28,7 @@ func TestLevelStore(t *testing.T) {
 	assert.Equal(t, err, nil)
 
 	record, err = store.Get(1)
-	assert.Equal(t, err, nil)
+	assert.Equal(t, err.Error(), "leveldb: not found")
 	assert.T(t, record == nil)
 }
 
