@@ -1,13 +1,16 @@
 language: go
-go: 1.1
+go: 
+  - 1.2
+  - 1.3
+  - tip
 script: 
   - make test
   - BUILD_TAGS=use_levigo make test
 before_install:
   - cd
-  - wget https://leveldb.googlecode.com/files/leveldb-1.10.0.tar.gz
-  - tar xzf leveldb-1.10.0.tar.gz
-  - cd leveldb-1.10.0
+  - wget https://leveldb.googlecode.com/files/leveldb-1.15.0.tar.gz
+  - tar xzf leveldb-1.15.0.tar.gz
+  - cd leveldb-1.15.0
   - make
   - export CGO_CFLAGS="-I`pwd`/include"
   - export CGO_LDFLAGS="-L`pwd`"
