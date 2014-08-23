@@ -1,6 +1,8 @@
 language: go
 go: 1.1
-script: make test
+script: 
+  - make test
+  - BUILD_TAGS=use_levigo make test
 before_install:
   - cd
   - wget https://leveldb.googlecode.com/files/leveldb-1.10.0.tar.gz
