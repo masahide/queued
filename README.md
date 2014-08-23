@@ -2,7 +2,7 @@
 
 Simple HTTP-based queue server
 
-[![Build Status](https://travis-ci.org/scttnlsn/queued.png?branch=master)](https://travis-ci.org/scttnlsn/queued)
+[![Build Status](https://travis-ci.org/masahide/queued.svg?branch=master)](https://travis-ci.org/masahide/queued)
 
 ## Getting Started
 
