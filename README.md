@@ -1,6 +1,6 @@
 # queued
 
-Simple HTTP-based queue server
+Simple HTTP-based queue server. Fork version of use [goleveldb](https://github.com/syndtr/goleveldb)(golang implementation of the LevelDB).
 
 [![Build Status](https://travis-ci.org/masahide/queued.svg?branch=master)](https://travis-ci.org/masahide/queued)
 
@@ -8,7 +8,7 @@ Simple HTTP-based queue server
 
 **Install:**
 
-Ensure [Go](http://golang.org/) and [LevelDB](https://code.google.com/p/leveldb/) are installed and then run:
+Ensure [Go](http://golang.org/) are installed and then run:
 
     $ make
     $ sudo make install
