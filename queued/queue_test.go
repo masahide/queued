@@ -1,13 +1,15 @@
 package queued
 
 import (
-	"github.com/bmizerany/assert"
 	"testing"
 	"time"
+
+	"github.com/bmizerany/assert"
 )
 
 func TestQueue(t *testing.T) {
-	q := NewQueue()
+	config := NewQueueConfig()
+	q := NewQueue(config)
 
 	q.Enqueue(123)
 	q.Enqueue(456)
@@ -20,7 +22,8 @@ func TestQueue(t *testing.T) {
 }
 
 func TestDequeueWait(t *testing.T) {
-	q := NewQueue()
+	config := NewQueueConfig()
+	q := NewQueue(config)
 
 	wait := time.Millisecond
 
@@ -38,7 +41,8 @@ func TestDequeueWait(t *testing.T) {
 }
 
 func TestDequeueTimeout(t *testing.T) {
-	q := NewQueue()
+	config := NewQueueConfig()
+	q := NewQueue(config)
 
 	timeout := time.Millisecond
 
@@ -60,7 +64,8 @@ func TestDequeueTimeout(t *testing.T) {
 }
 
 func TestStats(t *testing.T) {
-	q := NewQueue()
+	config := NewQueueConfig()
+	q := NewQueue(config)
 
 	q.Enqueue(123)
 	q.Enqueue(456)

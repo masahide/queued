@@ -12,9 +12,11 @@ type Queue struct {
 	waiting chan *Item
 	stats   *Stats
 	mutex   sync.Mutex
+	config  *QueueConfig
+	app     *Application
 }
 
-func NewQueue() *Queue {
+func NewQueue(config *QueueConfig) *Queue {
 	counters := map[string]int{
 		"enqueued": 0,
 		"dequeued": 0,
@@ -26,6 +28,7 @@ func NewQueue() *Queue {
 		items:   []*Item{},
 		waiting: make(chan *Item),
 		stats:   NewStats(counters),
+		config:  config,
 	}
 }
 
@@ -48,6 +51,9 @@ func (q *Queue) EnqueueItem(item *Item) {
 func (q *Queue) Dequeue(wait time.Duration, timeout time.Duration) *Item {
 	q.stats.Inc("dequeued")
 
+	if timeout == NilDuration && q.config.Timeout != NilDuration { // TODO: This code needs something.
+		timeout = q.config.Timeout
+	}
 	if item := q.shift(); item != nil {
 		q.timeout(item, timeout)
 		return item
@@ -93,16 +99,20 @@ func (q *Queue) append(item *Item) {
 func (q *Queue) timeout(item *Item, timeout time.Duration) {
 	if timeout != NilDuration {
 		item.dequeued = true
+		item.dequeueCount++
 
 		go func() {
 			select {
 			case <-time.After(timeout):
-				item.dequeued = false
-				q.EnqueueItem(item)
+				if q.config.Redirve && item.dequeueCount >= q.config.MaximumReceives {
+					q.app.DeadLetterQueue(q.config.DeadLetterQueue, item)
+				} else {
+					item.dequeued = false
+					q.EnqueueItem(item)
+				}
 				q.stats.Inc("timeouts")
 			case <-item.complete:
 				item.dequeued = false
-				return
 			}
 		}()
 	}

@@ -2,9 +2,10 @@ package queued
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"net"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type Server struct {
@@ -23,6 +24,8 @@ func NewServer(config *Config) *Server {
 
 	s := &Server{config, router, store, app, addr}
 
+	s.HandleFunc("/", s.ListQueuesHandler).Methods("GET")
+	s.HandleFunc("/", s.CreateQueueHandler).Methods("POST")
 	s.HandleFunc("/{queue}", s.EnqueueHandler).Methods("POST")
 	s.HandleFunc("/{queue}", s.StatsHandler).Methods("GET")
 	s.HandleFunc("/{queue}/dequeue", s.DequeueHandler).Methods("POST")

@@ -39,17 +39,30 @@ func NewApplication(store Store) *Application {
 	return app
 }
 
+func (a *Application) makeQueue(name string, config *QueueConfig) *Queue {
+	queue, ok := a.queues[name]
+	if !ok {
+		queue = NewQueue(config)
+		queue.app = a
+		a.queues[name] = queue
+	}
+	return queue
+}
+
+func (a *Application) CreateQueue(name string, config *QueueConfig) *Queue {
+	a.qmutex.Lock()
+	defer a.qmutex.Unlock()
+	return a.makeQueue(name, config)
+}
+
 func (a *Application) GetQueue(name string) *Queue {
 	a.qmutex.Lock()
 	defer a.qmutex.Unlock()
 
 	queue, ok := a.queues[name]
-
 	if !ok {
-		queue = NewQueue()
-		a.queues[name] = queue
+		return a.makeQueue(name, NewQueueConfig())
 	}
-
 	return queue
 }
 
@@ -75,20 +88,47 @@ func (a *Application) RemoveItem(id int) {
 	delete(a.items, id)
 }
 
+func (a *Application) DeadLetterQueue(name string, item *Item) error {
+	item.dequeued = false
+	record, err := a.store.Get(item.value)
+	if err != nil {
+		return err
+	}
+	err = a.EnqueueRecord(name, record)
+	if err != nil {
+		return err
+	}
+	err = a.store.Remove(item.value)
+	if err != nil {
+		return err
+	}
+	a.RemoveItem(item.value)
+	return nil
+}
+
 func (a *Application) Enqueue(name string, value []byte, mime string) (*Record, error) {
-	queue := a.GetQueue(name)
 	record := NewRecord(value, name)
 	record.Mime = mime
 
-	err := a.store.Put(record)
+	err := a.EnqueueRecord(name, record)
 	if err != nil {
 		return nil, err
+	}
+
+	return record, nil
+}
+
+func (a *Application) EnqueueRecord(name string, record *Record) error {
+	queue := a.GetQueue(name)
+	err := a.store.Put(record)
+	if err != nil {
+		return err
 	}
 
 	item := queue.Enqueue(record.Id)
 	a.PutItem(item)
 
-	return record, nil
+	return nil
 }
 
 func (a *Application) Dequeue(name string, wait time.Duration, timeout time.Duration) (*Record, error) {
@@ -110,22 +150,29 @@ func (a *Application) Dequeue(name string, wait time.Duration, timeout time.Dura
 	return record, nil
 }
 
-func (a *Application) Complete(name string, id int) (bool, error) {
-	item, ok := a.GetItem(id)
-
-	if !ok || !item.dequeued {
+func (a *Application) Remove(item *Item) (bool, error) {
+	if !item.dequeued {
 		return false, nil
 	}
 
-	err := a.store.Remove(id)
+	err := a.store.Remove(item.value)
 	if err != nil {
 		return false, err
 	}
 
 	item.Complete()
-	a.RemoveItem(id)
+	a.RemoveItem(item.value)
 
 	return true, nil
+}
+func (a *Application) Complete(name string, id int) (bool, error) {
+	item, ok := a.GetItem(id)
+
+	if !ok {
+		return false, nil
+	}
+
+	return a.Remove(item)
 }
 
 func (a *Application) Info(name string, id int) (*Info, error) {
@@ -150,4 +197,13 @@ func (a *Application) Info(name string, id int) (*Info, error) {
 func (a *Application) Stats(name string) map[string]int {
 	queue := a.GetQueue(name)
 	return queue.Stats()
+}
+
+func (a *Application) ListQueues() map[string]*Queue {
+
+	a.qmutex.Lock()
+	defer a.qmutex.Unlock()
+
+	queues := a.queues
+	return queues
 }
