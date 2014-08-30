@@ -4,13 +4,60 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 )
+
+func (s *Server) CreateQueueHandler(w http.ResponseWriter, req *http.Request) {
+	config := NewQueueConfig()
+
+	name := req.URL.Query().Get("name")
+	if name == "" {
+		send(w, http.StatusBadRequest, Json{"error": "required parameter is missing name"})
+		return
+	}
+	config.DeadLetterQueue = req.URL.Query().Get("dead_letter_queue")
+
+	if config.DeadLetterQueue != "" {
+		config.Redirve = true
+	}
+	max, err := Atoi(req.URL.Query().Get("max_receives"))
+	if err != nil {
+		send(w, http.StatusBadRequest, Json{"error": "Invalid MaximumReceives parameter"})
+		return
+	}
+	config.MaximumReceives = max
+
+	timeout, err := strconv.Atoi(req.URL.Query().Get("timeout"))
+	if err != nil {
+		send(w, http.StatusBadRequest, Json{"error": "Invalid timeout parameter"})
+		return
+	}
+	config.Timeout = timeout
+	config.Name = name
+
+	queue, err := s.App.CreateQueue(config)
+	if err != nil {
+		send(w, http.StatusInternalServerError, Json{"error": err.Error()})
+		return
+	}
+	bytes, err := json.Marshal(queue.config)
+
+	if err != nil {
+		send(w, http.StatusInternalServerError, Json{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Location", fmt.Sprintf("http://%s/%s", req.Host, name))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(bytes)
+}
 
 func (s *Server) EnqueueHandler(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
@@ -91,6 +138,21 @@ func (s *Server) InfoHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (s *Server) ListQueuesHandler(w http.ResponseWriter, req *http.Request) {
+	queues := s.App.ListQueues()
+	bytes, err := json.Marshal(queues)
+
+	if err != nil {
+		send(w, http.StatusInternalServerError, Json{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(bytes)
+
+}
+
 func (s *Server) StatsHandler(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	stats := s.App.Stats(params["queue"])
@@ -147,6 +209,13 @@ func Stod(val string, scale ...time.Duration) (time.Duration, error) {
 	}
 
 	return duration, nil
+}
+
+func Atoi(val string) (int, error) {
+	if val != "" {
+		return strconv.Atoi(val)
+	}
+	return 0, nil
 }
 
 func send(w http.ResponseWriter, code int, data Json) error {
