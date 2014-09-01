@@ -1,6 +1,8 @@
 package queued
 
 import (
+	"bytes"
+	"encoding/json"
 	"sync"
 	"time"
 )
@@ -11,22 +13,40 @@ type Info struct {
 }
 
 type Application struct {
-	store  Store
-	queues map[string]*Queue
-	items  map[int]*Item
-	qmutex sync.Mutex
-	imutex sync.RWMutex
+	itemStore  Store
+	queueStore Store
+	queues     map[string]*Queue
+	items      map[int]*Item
+	qmutex     sync.Mutex
+	imutex     sync.RWMutex
 }
 
-func NewApplication(store Store) *Application {
+type QueueStore struct {
+	Name   string
+	Config QueueConfig
+}
+
+func NewApplication(queueStore Store, itemStore Store) *Application {
 	app := &Application{
-		store:  store,
-		queues: make(map[string]*Queue),
-		items:  make(map[int]*Item),
+		itemStore:  itemStore,
+		queueStore: queueStore,
+		queues:     make(map[string]*Queue),
+		items:      make(map[int]*Item),
 	}
 
-	it := store.Iterator()
+	it := queueStore.Iterator()
 	record, ok := it.NextRecord()
+
+	for ok {
+		dec := json.NewDecoder(bytes.NewReader(record.Value))
+		var d QueueStore
+		dec.Decode(&d)
+		app.CreateQueue(d.Name, &d.Config)
+		record, ok = it.NextRecord()
+	}
+
+	it = itemStore.Iterator()
+	record, ok = it.NextRecord()
 
 	for ok {
 		queue := app.GetQueue(record.Queue)
@@ -90,7 +110,7 @@ func (a *Application) RemoveItem(id int) {
 
 func (a *Application) DeadLetterQueue(name string, item *Item) error {
 	item.dequeued = false
-	record, err := a.store.Get(item.value)
+	record, err := a.itemStore.Get(item.value)
 	if err != nil {
 		return err
 	}
@@ -98,7 +118,7 @@ func (a *Application) DeadLetterQueue(name string, item *Item) error {
 	if err != nil {
 		return err
 	}
-	err = a.store.Remove(item.value)
+	err = a.itemStore.Remove(item.value)
 	if err != nil {
 		return err
 	}
@@ -120,7 +140,7 @@ func (a *Application) Enqueue(name string, value []byte, mime string) (*Record, 
 
 func (a *Application) EnqueueRecord(name string, record *Record) error {
 	queue := a.GetQueue(name)
-	err := a.store.Put(record)
+	err := a.itemStore.Put(record)
 	if err != nil {
 		return err
 	}
@@ -138,7 +158,7 @@ func (a *Application) Dequeue(name string, wait time.Duration, timeout time.Dura
 		return nil, nil
 	}
 
-	record, err := a.store.Get(item.value)
+	record, err := a.itemStore.Get(item.value)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +175,7 @@ func (a *Application) Remove(item *Item) (bool, error) {
 		return false, nil
 	}
 
-	err := a.store.Remove(item.value)
+	err := a.itemStore.Remove(item.value)
 	if err != nil {
 		return false, err
 	}
@@ -176,7 +196,7 @@ func (a *Application) Complete(name string, id int) (bool, error) {
 }
 
 func (a *Application) Info(name string, id int) (*Info, error) {
-	record, err := a.store.Get(id)
+	record, err := a.itemStore.Get(id)
 	if err != nil {
 		return nil, err
 	}

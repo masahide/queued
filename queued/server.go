@@ -9,20 +9,22 @@ import (
 )
 
 type Server struct {
-	Config *Config
-	Router *mux.Router
-	Store  Store
-	App    *Application
-	Addr   string
+	Config     *Config
+	Router     *mux.Router
+	ItemStore  Store
+	QueueStore Store
+	App        *Application
+	Addr       string
 }
 
 func NewServer(config *Config) *Server {
 	router := mux.NewRouter()
-	store := config.CreateStore()
-	app := NewApplication(store)
+	itemStore := config.CreateStore("item.db")
+	queueStore := config.CreateStore("queue.db")
+	app := NewApplication(queueStore, itemStore)
 	addr := fmt.Sprintf(":%d", config.Port)
 
-	s := &Server{config, router, store, app, addr}
+	s := &Server{config, router, itemStore, queueStore, app, addr}
 
 	s.HandleFunc("/", s.ListQueuesHandler).Methods("GET")
 	s.HandleFunc("/", s.CreateQueueHandler).Methods("POST")

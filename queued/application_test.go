@@ -1,16 +1,19 @@
 package queued
 
 import (
-	"github.com/bmizerany/assert"
 	"testing"
 	"time"
+
+	"github.com/bmizerany/assert"
 )
 
 func TestApplication(t *testing.T) {
-	store := NewLevelStore("./test1.db", true)
-	defer store.Drop()
+	itemstore := NewLevelStore("./test1item.db", true)
+	defer itemstore.Drop()
+	queuestore := NewLevelStore("./test1queue.db", true)
+	defer queuestore.Drop()
 
-	app := NewApplication(store)
+	app := NewApplication(queuestore, itemstore)
 
 	assert.Equal(t, app.GetQueue("test"), app.GetQueue("test"))
 	assert.NotEqual(t, app.GetQueue("test"), app.GetQueue("foobar"))
@@ -66,14 +69,16 @@ func TestApplication(t *testing.T) {
 }
 
 func TestNewApplication(t *testing.T) {
-	store := NewLevelStore("./test2.db", true)
-	defer store.Drop()
+	itemstore := NewLevelStore("./test1item.db", true)
+	defer itemstore.Drop()
+	queuestore := NewLevelStore("./test1queue.db", true)
+	defer queuestore.Drop()
 
-	store.Put(NewRecord([]byte("foo"), "test"))
-	store.Put(NewRecord([]byte("bar"), "test"))
-	store.Put(NewRecord([]byte("baz"), "another"))
+	itemstore.Put(NewRecord([]byte("foo"), "test"))
+	itemstore.Put(NewRecord([]byte("bar"), "test"))
+	itemstore.Put(NewRecord([]byte("baz"), "another"))
 
-	app := NewApplication(store)
+	app := NewApplication(queuestore, itemstore)
 
 	one, _ := app.Dequeue("test", NilDuration, NilDuration)
 	assert.Equal(t, one.Id, 1)

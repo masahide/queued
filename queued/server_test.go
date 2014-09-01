@@ -1,16 +1,18 @@
 package queued
 
 import (
-	"github.com/bmizerany/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/bmizerany/assert"
 )
 
 func TestServer(t *testing.T) {
 	s := NewServer(&Config{DbPath: "./server1", Store: "memory"})
-	defer s.Store.Drop()
+	defer s.ItemStore.Drop()
+	defer s.QueueStore.Drop()
 
 	// Enqueue
 	body := strings.NewReader("bar")
@@ -68,7 +70,8 @@ func TestServer(t *testing.T) {
 
 func TestServerAuth(t *testing.T) {
 	s := NewServer(&Config{DbPath: "./server2", Auth: "secret", Store: "memory"})
-	defer s.Store.Drop()
+	defer s.ItemStore.Drop()
+	defer s.QueueStore.Drop()
 
 	body := strings.NewReader("bar")
 
