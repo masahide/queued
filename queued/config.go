@@ -1,10 +1,6 @@
 package queued
 
-import (
-	"fmt"
-	"os"
-	"path/filepath"
-)
+import "fmt"
 
 type Config struct {
 	Port   uint
@@ -18,14 +14,9 @@ func NewConfig() *Config {
 	return &Config{}
 }
 
-func (c *Config) CreateStore(name string) Store {
+func (c *Config) CreateStore() Store {
 	if c.Store == "leveldb" {
-		if _, err := os.Stat(c.DbPath); err != nil && os.IsNotExist(err) {
-			if err := os.Mkdir(c.DbPath, 0755); err != nil {
-				panic(fmt.Sprintf("queued.CreateStore: Error os.Mkdir: %v", err))
-			}
-		}
-		return NewLevelStore(filepath.Join(c.DbPath, name), c.Sync)
+		return NewLevelStore(c.DbPath, c.Sync)
 	} else if c.Store == "memory" {
 		return NewMemoryStore()
 	} else {

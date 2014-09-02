@@ -1,8 +1,6 @@
 package queued
 
 import (
-	"bytes"
-	"encoding/json"
 	"sync"
 	"time"
 )
@@ -13,40 +11,30 @@ type Info struct {
 }
 
 type Application struct {
-	itemStore  Store
-	queueStore Store
-	queues     map[string]*Queue
-	items      map[int]*Item
-	qmutex     sync.Mutex
-	imutex     sync.RWMutex
+	itemStore   Store
+	ConfigStore ConfigStore
+	queues      map[string]*Queue
+	items       map[int]*Item
+	qmutex      sync.Mutex
+	imutex      sync.RWMutex
 }
 
-type QueueStore struct {
-	Name   string
-	Config QueueConfig
-}
-
-func NewApplication(queueStore Store, itemStore Store) *Application {
+func NewApplication(ConfigStore ConfigStore, itemStore Store) *Application {
 	app := &Application{
-		itemStore:  itemStore,
-		queueStore: queueStore,
-		queues:     make(map[string]*Queue),
-		items:      make(map[int]*Item),
+		itemStore:   itemStore,
+		ConfigStore: ConfigStore,
+		queues:      make(map[string]*Queue),
+		items:       make(map[int]*Item),
 	}
 
-	it := queueStore.Iterator()
+	QueueConfigs := ConfigStore.GetQueueConfigs()
+
+	for name, queueConfig := range QueueConfigs {
+		app.makeQueue(&queueConfig)
+	}
+
+	it := itemStore.Iterator()
 	record, ok := it.NextRecord()
-
-	for ok {
-		dec := json.NewDecoder(bytes.NewReader(record.Value))
-		var d QueueStore
-		dec.Decode(&d)
-		app.CreateQueue(d.Name, &d.Config)
-		record, ok = it.NextRecord()
-	}
-
-	it = itemStore.Iterator()
-	record, ok = it.NextRecord()
 
 	for ok {
 		queue := app.GetQueue(record.Queue)
@@ -59,20 +47,25 @@ func NewApplication(queueStore Store, itemStore Store) *Application {
 	return app
 }
 
-func (a *Application) makeQueue(name string, config *QueueConfig) *Queue {
-	queue, ok := a.queues[name]
+func (a *Application) makeQueue(config *QueueConfig) *Queue {
+	queue, ok := a.queues[config.Name]
 	if !ok {
 		queue = NewQueue(config)
 		queue.app = a
-		a.queues[name] = queue
+		a.queues[config.Name] = queue
 	}
 	return queue
 }
 
-func (a *Application) CreateQueue(name string, config *QueueConfig) *Queue {
+func (a *Application) CreateQueue(config *QueueConfig) (*Queue, error) {
 	a.qmutex.Lock()
 	defer a.qmutex.Unlock()
-	return a.makeQueue(name, config)
+	err := a.ConfigStore.PutQueue(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return a.makeQueue(config), err
 }
 
 func (a *Application) GetQueue(name string) *Queue {
@@ -81,7 +74,9 @@ func (a *Application) GetQueue(name string) *Queue {
 
 	queue, ok := a.queues[name]
 	if !ok {
-		return a.makeQueue(name, NewQueueConfig())
+		config := NewQueueConfig()
+		config.Name = name
+		return a.makeQueue(config)
 	}
 	return queue
 }

@@ -33,14 +33,19 @@ func (s *Server) CreateQueueHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	config.MaximumReceives = max
 
-	timeout, err := Stod(req.URL.Query().Get("timeout"), time.Second)
+	timeout, err := strconv.Atoi(req.URL.Query().Get("timeout"))
 	if err != nil {
 		send(w, http.StatusBadRequest, Json{"error": "Invalid timeout parameter"})
 		return
 	}
 	config.Timeout = timeout
+	config.Name = name
 
-	queue := s.App.CreateQueue(name, config)
+	queue, err := s.App.CreateQueue(config)
+	if err != nil {
+		send(w, http.StatusInternalServerError, Json{"error": err.Error()})
+		return
+	}
 	bytes, err := json.Marshal(queue)
 
 	if err != nil {

@@ -9,18 +9,19 @@ import (
 )
 
 type Server struct {
-	Config     *Config
-	Router     *mux.Router
-	ItemStore  Store
-	QueueStore Store
-	App        *Application
-	Addr       string
+	Config      *Config
+	Router      *mux.Router
+	ItemStore   Store
+	QueueConfig ConfigStore
+	App         *Application
+	Addr        string
 }
 
 func NewServer(config *Config) *Server {
 	router := mux.NewRouter()
-	itemStore := config.CreateStore("item.db")
-	queueStore := config.CreateStore("queue.db")
+	itemStore := config.CreateStore()
+	configStore := NewConfigStore()
+	queueStore := config.QueueConfig.NewQueueConfig("queue.json")
 	app := NewApplication(queueStore, itemStore)
 	addr := fmt.Sprintf(":%d", config.Port)
 
