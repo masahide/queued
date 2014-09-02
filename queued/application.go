@@ -1,8 +1,6 @@
 package queued
 
 import (
-	"bytes"
-	"encoding/json"
 	"sync"
 	"time"
 )
@@ -13,35 +11,34 @@ type Info struct {
 }
 
 type Application struct {
-	itemStore  Store
-	queueStore Store
-	queues     map[string]*Queue
-	items      map[int]*Item
-	qmutex     sync.Mutex
-	imutex     sync.RWMutex
+	itemStore        Store
+	queueConfigStore Store
+	queues           map[string]*Queue
+	items            map[int]*Item
+	qmutex           sync.Mutex
+	imutex           sync.RWMutex
 }
 
-type QueueStore struct {
+type QueueConfigStore struct {
 	Name   string
 	Config QueueConfig
 }
 
-func NewApplication(queueStore Store, itemStore Store) *Application {
+func NewApplication(queueConfigStore Store, itemStore Store) *Application {
 	app := &Application{
-		itemStore:  itemStore,
-		queueStore: queueStore,
-		queues:     make(map[string]*Queue),
-		items:      make(map[int]*Item),
+		itemStore:        itemStore,
+		queueConfigStore: queueConfigStore,
+		queues:           make(map[string]*Queue),
+		items:            make(map[int]*Item),
 	}
 
-	it := queueStore.Iterator()
+	it := queueConfigStore.Iterator()
 	record, ok := it.NextRecord()
 
 	for ok {
-		dec := json.NewDecoder(bytes.NewReader(record.Value))
-		var d QueueStore
+		var queueConfigStore QueueConfigStore
 		dec.Decode(&d)
-		app.CreateQueue(d.Name, &d.Config)
+		app.CreateQueue(queueConfigStore)
 		record, ok = it.NextRecord()
 	}
 
