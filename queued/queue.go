@@ -51,8 +51,8 @@ func (q *Queue) EnqueueItem(item *Item) {
 func (q *Queue) Dequeue(wait time.Duration, timeout time.Duration) *Item {
 	q.stats.Inc("dequeued")
 
-	if timeout == NilDuration && q.config.Timeout != NilDuration { // TODO: This code needs something.
-		timeout = q.config.Timeout
+	if timeout == NilDuration && q.config.Timeout != QueueNilTimeout {
+		timeout = time.Duration(q.config.Timeout) * time.Second
 	}
 	if item := q.shift(); item != nil {
 		q.timeout(item, timeout)

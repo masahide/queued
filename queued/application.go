@@ -29,7 +29,7 @@ func NewApplication(ConfigStore ConfigStore, itemStore Store) *Application {
 
 	QueueConfigs := ConfigStore.GetQueueConfigs()
 
-	for name, queueConfig := range QueueConfigs {
+	for _, queueConfig := range QueueConfigs {
 		app.makeQueue(&queueConfig)
 	}
 

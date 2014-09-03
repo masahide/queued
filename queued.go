@@ -18,6 +18,7 @@ func init() {
 	flag.StringVar(&config.Auth, "auth", "", "HTTP basic auth password required for all requests")
 	flag.StringVar(&config.Store, "store", "leveldb", "the backend in which items will be stored (leveldb or memory)")
 	flag.StringVar(&config.DbPath, "db-path", "./queued.db", "the directory in which queue items will be persisted (n/a for memory store)")
+	flag.StringVar(&config.ConfigPath, "config-file", "./queued.conf", "queued setting is persisted in this file (n/a for memory store)")
 	flag.BoolVar(&config.Sync, "sync", true, "boolean indicating whether data should be synced to disk after every write (n/a for memory store)")
 }
 

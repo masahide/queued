@@ -11,8 +11,8 @@ type ConfigStore struct {
 	configs map[string]QueueConfig
 }
 
-func NewConfigStore(path string, sync bool) *ConfigStore {
-	fh, err := os.Open(path)
+func NewConfigStore(path string) ConfigStore {
+	fh, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0660)
 	if err != nil {
 		panic(fmt.Sprintf("queued.ConfigStore: unable to open file: %v", err))
 	}
@@ -20,33 +20,40 @@ func NewConfigStore(path string, sync bool) *ConfigStore {
 	dec := json.NewDecoder(fh)
 	var configs map[string]QueueConfig
 	dec.Decode(&configs)
-	qs := ConfigStore{
+
+	return ConfigStore{
 		path:    path,
 		configs: configs,
 	}
 
-	return &qs
 }
 
-func (qs *ConfigStore) GetQueueConfigs() map[string]QueueConfig {
+func (qs ConfigStore) GetQueueConfigs() map[string]QueueConfig {
 	return qs.configs
 }
-func (qs *ConfigStore) Get(name string) QueueConfig {
+func (qs ConfigStore) Get(name string) QueueConfig {
 	return qs.configs[name]
 }
 
-func (qs *ConfigStore) PutQueue(config *QueueConfig) error {
+func (qs ConfigStore) PutQueue(config *QueueConfig) error {
 	qs.configs[config.Name] = *config
-	fh, err := os.Open(qs.path)
+	fh, err := os.OpenFile(qs.path, os.O_WRONLY|os.O_CREATE, 0660)
 	if err != nil {
-		panic(fmt.Sprintf("queued.QuereConfigStore: unable to open file: %v", err))
+		panic(fmt.Sprintf("queued.QueueConfigStore: unable to open file: %v", err))
 	}
 	defer fh.Close()
 
-	b, err := json.Marshal(*qs)
+	b, err := json.Marshal(qs)
 	if err != nil {
-		panic(fmt.Sprintf("queued.QuereConfigStore: %v", err))
+		panic(fmt.Sprintf("queued.QueueConfigStore: %v", err))
 	}
 	fh.Write(b)
 	return err
+}
+
+func (qs ConfigStore) Drop() {
+	err := os.RemoveAll(qs.path)
+	if err != nil {
+		panic(fmt.Sprintf("queued.QueueConfigStore: Error Remove file: %v", err))
+	}
 }

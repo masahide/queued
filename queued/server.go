@@ -20,8 +20,7 @@ type Server struct {
 func NewServer(config *Config) *Server {
 	router := mux.NewRouter()
 	itemStore := config.CreateStore()
-	configStore := NewConfigStore()
-	queueStore := config.QueueConfig.NewQueueConfig("queue.json")
+	queueStore := config.CreateConfigStore()
 	app := NewApplication(queueStore, itemStore)
 	addr := fmt.Sprintf(":%d", config.Port)
 
