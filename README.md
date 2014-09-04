@@ -70,6 +70,7 @@ Get stats about a given queue.
 
 * **-auth=""** - HTTP basic auth password required for all requests
 * **-db-path="./queued.db"** - the directory in which queue items will be persisted (n/a for memory store)
+* **-db-file="./queued.json"** - queued setting is persisted in this file (not want to save the file by default)
 * **-port=5353** - port on which to listen
 * **-store=leveldb** - the backend in which items will be stored (`leveldb` or `memory`)
 * **-sync=true** - boolean indicating whether data should be synced to disk after every write (n/a for memory store, see LevelDB's `WriteOptions::sync`)
