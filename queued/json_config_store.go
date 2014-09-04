@@ -14,7 +14,7 @@ type JsonConfigStore struct {
 func NewJsonConfigStore(path string) *JsonConfigStore {
 	fh, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0660)
 	if err != nil {
-		panic(fmt.Sprintf("queued.JsonConfigStore: unable to open file: %v", err))
+		panic(fmt.Sprintf("queued.JsonConfigStore: unable to open file: %s, err:%v", path, err))
 	}
 	defer fh.Close()
 	cs := JsonConfigStore{}
@@ -39,13 +39,13 @@ func (qs *JsonConfigStore) PutQueue(config *QueueConfig) error {
 	qs.Queues[config.Name] = *config
 	fh, err := os.OpenFile(qs.path, os.O_WRONLY|os.O_CREATE, 0660)
 	if err != nil {
-		panic(fmt.Sprintf("queued.QueueConfigStore: unable to open file: %v", err))
+		panic(fmt.Sprintf("queued.JsonConfigStore: unable to open file: %s, err:%v", qs.path, err))
 	}
 	defer fh.Close()
 
 	b, err := json.MarshalIndent(qs, "", "  ")
 	if err != nil {
-		panic(fmt.Sprintf("queued.QueueConfigStore: %v", err))
+		panic(fmt.Sprintf("queued.JsonConfigStore: %v", err))
 	}
 	fh.Write(b)
 	return err

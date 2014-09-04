@@ -25,5 +25,9 @@ func (c *Config) CreateStore() Store {
 	}
 }
 func (c *Config) CreateConfigStore() ConfigStore {
-	return NewJsonConfigStore(c.ConfigPath)
+	if c.ConfigPath != "" {
+		return NewJsonConfigStore(c.ConfigPath)
+	} else {
+		return NewMemoryConfigStore()
+	}
 }
