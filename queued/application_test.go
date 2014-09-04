@@ -13,10 +13,14 @@ func TestApplication(t *testing.T) {
 	queuestore := NewJsonConfigStore("./test1config.json")
 	defer queuestore.Drop()
 
-	app := NewApplication(queuestore, itemstore)
+	app, _ := NewApplication(queuestore, itemstore)
 
-	assert.Equal(t, app.GetQueue("test"), app.GetQueue("test"))
-	assert.NotEqual(t, app.GetQueue("test"), app.GetQueue("foobar"))
+	getq1, _ := app.GetQueue("test")
+	getq2, _ := app.GetQueue("test")
+	assert.Equal(t, getq1, getq2)
+	getq3, _ := app.GetQueue("test")
+	getq4, _ := app.GetQueue("foobar")
+	assert.NotEqual(t, getq3, getq4)
 
 	record, err := app.Enqueue("test", []byte("foo"), "")
 
@@ -25,7 +29,7 @@ func TestApplication(t *testing.T) {
 	assert.Equal(t, record.Value, []byte("foo"))
 	assert.Equal(t, record.Queue, "test")
 
-	stats := app.Stats("test")
+	stats, _ := app.Stats("test")
 
 	assert.Equal(t, stats["enqueued"], 1)
 	assert.Equal(t, stats["dequeued"], 0)
@@ -78,7 +82,7 @@ func TestNewApplication(t *testing.T) {
 	itemstore.Put(NewRecord([]byte("bar"), "test"))
 	itemstore.Put(NewRecord([]byte("baz"), "another"))
 
-	app := NewApplication(queuestore, itemstore)
+	app, _ := NewApplication(queuestore, itemstore)
 
 	one, _ := app.Dequeue("test", NilDuration, NilDuration)
 	assert.Equal(t, one.Id, 1)
