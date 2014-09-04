@@ -11,21 +11,29 @@ type Info struct {
 }
 
 type Application struct {
-	store  Store
-	queues map[string]*Queue
-	items  map[int]*Item
-	qmutex sync.Mutex
-	imutex sync.RWMutex
+	itemStore   Store
+	ConfigStore ConfigStore
+	queues      map[string]*Queue
+	items       map[int]*Item
+	qmutex      sync.Mutex
+	imutex      sync.RWMutex
 }
 
-func NewApplication(store Store) *Application {
+func NewApplication(ConfigStore ConfigStore, itemStore Store) *Application {
 	app := &Application{
-		store:  store,
-		queues: make(map[string]*Queue),
-		items:  make(map[int]*Item),
+		itemStore:   itemStore,
+		ConfigStore: ConfigStore,
+		queues:      make(map[string]*Queue),
+		items:       make(map[int]*Item),
 	}
 
-	it := store.Iterator()
+	QueueConfigs := ConfigStore.GetQueueConfigs()
+
+	for _, queueConfig := range QueueConfigs {
+		app.makeQueue(&queueConfig)
+	}
+
+	it := itemStore.Iterator()
 	record, ok := it.NextRecord()
 
 	for ok {
@@ -39,17 +47,37 @@ func NewApplication(store Store) *Application {
 	return app
 }
 
+func (a *Application) makeQueue(config *QueueConfig) *Queue {
+	queue, ok := a.queues[config.Name]
+	if !ok {
+		queue = NewQueue(config)
+		queue.app = a
+		a.queues[config.Name] = queue
+	}
+	return queue
+}
+
+func (a *Application) CreateQueue(config *QueueConfig) (*Queue, error) {
+	a.qmutex.Lock()
+	defer a.qmutex.Unlock()
+	err := a.ConfigStore.PutQueue(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return a.makeQueue(config), err
+}
+
 func (a *Application) GetQueue(name string) *Queue {
 	a.qmutex.Lock()
 	defer a.qmutex.Unlock()
 
 	queue, ok := a.queues[name]
-
 	if !ok {
-		queue = NewQueue()
-		a.queues[name] = queue
+		config := NewQueueConfig()
+		config.Name = name
+		return a.makeQueue(config)
 	}
-
 	return queue
 }
 
@@ -75,20 +103,47 @@ func (a *Application) RemoveItem(id int) {
 	delete(a.items, id)
 }
 
+func (a *Application) DeadLetterQueue(name string, item *Item) error {
+	item.dequeued = false
+	record, err := a.itemStore.Get(item.value)
+	if err != nil {
+		return err
+	}
+	err = a.EnqueueRecord(name, record)
+	if err != nil {
+		return err
+	}
+	err = a.itemStore.Remove(item.value)
+	if err != nil {
+		return err
+	}
+	a.RemoveItem(item.value)
+	return nil
+}
+
 func (a *Application) Enqueue(name string, value []byte, mime string) (*Record, error) {
-	queue := a.GetQueue(name)
 	record := NewRecord(value, name)
 	record.Mime = mime
 
-	err := a.store.Put(record)
+	err := a.EnqueueRecord(name, record)
 	if err != nil {
 		return nil, err
+	}
+
+	return record, nil
+}
+
+func (a *Application) EnqueueRecord(name string, record *Record) error {
+	queue := a.GetQueue(name)
+	err := a.itemStore.Put(record)
+	if err != nil {
+		return err
 	}
 
 	item := queue.Enqueue(record.Id)
 	a.PutItem(item)
 
-	return record, nil
+	return nil
 }
 
 func (a *Application) Dequeue(name string, wait time.Duration, timeout time.Duration) (*Record, error) {
@@ -98,7 +153,7 @@ func (a *Application) Dequeue(name string, wait time.Duration, timeout time.Dura
 		return nil, nil
 	}
 
-	record, err := a.store.Get(item.value)
+	record, err := a.itemStore.Get(item.value)
 	if err != nil {
 		return nil, err
 	}
@@ -110,26 +165,33 @@ func (a *Application) Dequeue(name string, wait time.Duration, timeout time.Dura
 	return record, nil
 }
 
-func (a *Application) Complete(name string, id int) (bool, error) {
-	item, ok := a.GetItem(id)
-
-	if !ok || !item.dequeued {
+func (a *Application) Remove(item *Item) (bool, error) {
+	if !item.dequeued {
 		return false, nil
 	}
 
-	err := a.store.Remove(id)
+	err := a.itemStore.Remove(item.value)
 	if err != nil {
 		return false, err
 	}
 
 	item.Complete()
-	a.RemoveItem(id)
+	a.RemoveItem(item.value)
 
 	return true, nil
 }
+func (a *Application) Complete(name string, id int) (bool, error) {
+	item, ok := a.GetItem(id)
+
+	if !ok {
+		return false, nil
+	}
+
+	return a.Remove(item)
+}
 
 func (a *Application) Info(name string, id int) (*Info, error) {
-	record, err := a.store.Get(id)
+	record, err := a.itemStore.Get(id)
 	if err != nil {
 		return nil, err
 	}
@@ -150,4 +212,13 @@ func (a *Application) Info(name string, id int) (*Info, error) {
 func (a *Application) Stats(name string) map[string]int {
 	queue := a.GetQueue(name)
 	return queue.Stats()
+}
+
+func (a *Application) ListQueues() map[string]*Queue {
+
+	a.qmutex.Lock()
+	defer a.qmutex.Unlock()
+
+	queues := a.queues
+	return queues
 }

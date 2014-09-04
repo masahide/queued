@@ -2,27 +2,32 @@ package queued
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"net"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type Server struct {
-	Config *Config
-	Router *mux.Router
-	Store  Store
-	App    *Application
-	Addr   string
+	Config      *Config
+	Router      *mux.Router
+	ItemStore   Store
+	QueueConfig ConfigStore
+	App         *Application
+	Addr        string
 }
 
 func NewServer(config *Config) *Server {
 	router := mux.NewRouter()
-	store := config.CreateStore()
-	app := NewApplication(store)
+	itemStore := config.CreateStore()
+	queueStore := config.CreateConfigStore()
+	app := NewApplication(queueStore, itemStore)
 	addr := fmt.Sprintf(":%d", config.Port)
 
-	s := &Server{config, router, store, app, addr}
+	s := &Server{config, router, itemStore, queueStore, app, addr}
 
+	s.HandleFunc("/", s.ListQueuesHandler).Methods("GET")
+	s.HandleFunc("/", s.CreateQueueHandler).Methods("POST")
 	s.HandleFunc("/{queue}", s.EnqueueHandler).Methods("POST")
 	s.HandleFunc("/{queue}", s.StatsHandler).Methods("GET")
 	s.HandleFunc("/{queue}/dequeue", s.DequeueHandler).Methods("POST")
