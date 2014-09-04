@@ -27,6 +27,7 @@ Ensure [Go](http://golang.org/) are installed and then run:
 * `max_receives=<N>` - The maximum number of times that a message can be received by consumers. When this value is exceeded for a message the message will be automatically sent to the Dead Letter Queue.
 * `timeout=<sec>` - if the item is not completed (see endpoint below) within the specified number of seconds, the item will automatically be re-enqueued (when no timeout is specified the item is automatically completed when dequeued)
 * `dead_letter_queue=<string>` -  Name of dead letter quene.
+* `exponential_backoff=false` -  Exponential-Backoff `true` or `false`.
 
 **Enqueue:**
 
