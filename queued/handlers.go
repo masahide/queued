@@ -41,6 +41,12 @@ func (s *Server) CreateQueueHandler(w http.ResponseWriter, req *http.Request) {
 	config.Timeout = timeout
 	config.Name = name
 
+	if req.URL.Query().Get("exponential_backoff") == "true" {
+		config.ExponentialBackoff = true
+	} else {
+		config.ExponentialBackoff = false
+	}
+
 	queue, err := s.App.CreateQueue(config)
 	if err != nil {
 		send(w, http.StatusInternalServerError, Json{"error": err.Error()})

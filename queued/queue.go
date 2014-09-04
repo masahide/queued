@@ -99,6 +99,9 @@ func (q *Queue) append(item *Item) {
 func (q *Queue) timeout(item *Item, timeout time.Duration) {
 	if timeout != NilDuration {
 		item.dequeued = true
+		if q.config.ExponentialBackoff {
+			timeout = timeout * (1 << uint(item.dequeueCount))
+		}
 		item.dequeueCount++
 
 		go func() {
