@@ -25,5 +25,5 @@ func (c *Config) CreateStore() Store {
 	}
 }
 func (c *Config) CreateConfigStore() ConfigStore {
-	return NewConfigStore(c.ConfigPath)
+	return NewJsonConfigStore(c.ConfigPath)
 }

@@ -10,7 +10,7 @@ import (
 func TestApplication(t *testing.T) {
 	itemstore := NewLevelStore("./test1item.db", true)
 	defer itemstore.Drop()
-	queuestore := NewConfigStore("./test1config.json")
+	queuestore := NewJsonConfigStore("./test1config.json")
 	defer queuestore.Drop()
 
 	app := NewApplication(queuestore, itemstore)
@@ -71,7 +71,7 @@ func TestApplication(t *testing.T) {
 func TestNewApplication(t *testing.T) {
 	itemstore := NewLevelStore("./test1item.db", true)
 	defer itemstore.Drop()
-	queuestore := NewConfigStore("./test1config.json")
+	queuestore := NewJsonConfigStore("./test1config.json")
 	defer queuestore.Drop()
 
 	itemstore.Put(NewRecord([]byte("foo"), "test"))
