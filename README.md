@@ -23,6 +23,11 @@ Ensure [Go](http://golang.org/) are installed and then run:
 
     $ curl -X POST "http://localhost:5353/?name=hoge&max_receives=2&timeout=5&dead_letter_queue=dead_hoge"
 
+* `name=<string>` - Name of quene.
+* `max_receives=<N>` - The maximum number of times that a message can be received by consumers. When this value is exceeded for a message the message will be automatically sent to the Dead Letter Queue.
+* `timeout=<sec>` - if the item is not completed (see endpoint below) within the specified number of seconds, the item will automatically be re-enqueued (when no timeout is specified the item is automatically completed when dequeued)
+* `dead_letter_queue=<string>` -  Name of dead letter quene.
+
 **Enqueue:**
 
     $ curl -X POST http://localhost:5353/:queue -d 'foo'
