@@ -19,6 +19,10 @@ Ensure [Go](http://golang.org/) are installed and then run:
 
 ## API
 
+**Create queue:**
+
+    $ curl -X POST "http://localhost:5353/?name=hoge&max_receives=2&timeout=5&dead_letter_queue=dead_hoge"
+
 **Enqueue:**
 
     $ curl -X POST http://localhost:5353/:queue -d 'foo'
