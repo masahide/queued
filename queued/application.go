@@ -19,7 +19,7 @@ type Application struct {
 	imutex      sync.RWMutex
 }
 
-func NewApplication(ConfigStore ConfigStore, itemStore Store) *Application {
+func NewApplication(ConfigStore ConfigStore, itemStore Store) (*Application, error) {
 	app := &Application{
 		itemStore:   itemStore,
 		ConfigStore: ConfigStore,
@@ -37,14 +37,17 @@ func NewApplication(ConfigStore ConfigStore, itemStore Store) *Application {
 	record, ok := it.NextRecord()
 
 	for ok {
-		queue := app.GetQueue(record.Queue)
+		queue, err := app.GetQueue(record.Queue)
+		if err != nil {
+			return nil, err
+		}
 		item := queue.Enqueue(record.Id)
 		app.items[item.value] = item
 
 		record, ok = it.NextRecord()
 	}
 
-	return app
+	return app, nil
 }
 
 func (a *Application) makeQueue(config *QueueConfig) *Queue {
@@ -68,7 +71,7 @@ func (a *Application) CreateQueue(config *QueueConfig) (*Queue, error) {
 	return a.makeQueue(config), err
 }
 
-func (a *Application) GetQueue(name string) *Queue {
+func (a *Application) GetQueue(name string) (*Queue, error) {
 	a.qmutex.Lock()
 	defer a.qmutex.Unlock()
 
@@ -76,9 +79,13 @@ func (a *Application) GetQueue(name string) *Queue {
 	if !ok {
 		config := NewQueueConfig()
 		config.Name = name
-		return a.makeQueue(config)
+		err := a.ConfigStore.PutQueue(config)
+		if err != nil {
+			return nil, err
+		}
+		return a.makeQueue(config), err
 	}
-	return queue
+	return queue, nil
 }
 
 func (a *Application) GetItem(id int) (*Item, bool) {
@@ -134,8 +141,11 @@ func (a *Application) Enqueue(name string, value []byte, mime string) (*Record, 
 }
 
 func (a *Application) EnqueueRecord(name string, record *Record) error {
-	queue := a.GetQueue(name)
-	err := a.itemStore.Put(record)
+	queue, err := a.GetQueue(name)
+	if err != nil {
+		return err
+	}
+	err = a.itemStore.Put(record)
 	if err != nil {
 		return err
 	}
@@ -147,7 +157,10 @@ func (a *Application) EnqueueRecord(name string, record *Record) error {
 }
 
 func (a *Application) Dequeue(name string, wait time.Duration, timeout time.Duration) (*Record, error) {
-	queue := a.GetQueue(name)
+	queue, err := a.GetQueue(name)
+	if err != nil {
+		return nil, err
+	}
 	item := queue.Dequeue(wait, timeout)
 	if item == nil {
 		return nil, nil
@@ -209,9 +222,12 @@ func (a *Application) Info(name string, id int) (*Info, error) {
 	return info, nil
 }
 
-func (a *Application) Stats(name string) map[string]int {
-	queue := a.GetQueue(name)
-	return queue.Stats()
+func (a *Application) Stats(name string) (map[string]int, error) {
+	queue, err := a.GetQueue(name)
+	if err != nil {
+		return nil, err
+	}
+	return queue.Stats(), err
 }
 
 func (a *Application) ListQueues() map[string]*Queue {

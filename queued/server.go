@@ -21,7 +21,10 @@ func NewServer(config *Config) *Server {
 	router := mux.NewRouter()
 	itemStore := config.CreateStore()
 	queueStore := config.CreateConfigStore()
-	app := NewApplication(queueStore, itemStore)
+	app, err := NewApplication(queueStore, itemStore)
+	if err != nil {
+		panic(err)
+	}
 	addr := fmt.Sprintf(":%d", config.Port)
 
 	s := &Server{config, router, itemStore, queueStore, app, addr}
